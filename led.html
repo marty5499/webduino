@@ -33,6 +33,7 @@
         board.on('ready', function() {
             var led = document.getElementById('led');
             led.on();
+
             light.className = 'on';
             console.log('led on');
 
@@ -54,13 +55,13 @@
 </head>
 
 <body>
-    <web-arduino id='board' device='35dr'>
+    <web-arduino id='board' device='3P7r'>
         <wa-led id='led' pin='10' state="on"></wa-led>
     </web-arduino>
 
     <div id='light' class="off">
-        <img src='http://i.imgur.com/T5H4MHE.png'></img>
-        <img src='http://i.imgur.com/8qFj2Ou.png'></img>
+        <img src='http://i.imgur.com/i0CHoAt.jpg'></img>
+        <img src='http://i.imgur.com/rhEBE6x.jpg'></img>
     </div>
 
 </body>
