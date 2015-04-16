@@ -34,7 +34,7 @@
             var led = document.getElementById('led');
             led.on();
 
-            light.className = 'on';
+            light.className = 'on'; 
             console.log('led on');
 
             light.addEventListener('click', function() {
@@ -55,7 +55,7 @@
 </head>
 
 <body>
-    <web-arduino id='board' device='30k5'>
+    <web-arduino id='board' device='reJx'>
         <wa-led id='led' pin='10' state="on"></wa-led>
     </web-arduino>
 
