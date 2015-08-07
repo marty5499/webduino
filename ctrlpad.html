@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>遙控車-遙控器版</title>
+    <script src="http://webduino.io/components/webcomponentsjs/webcomponents.js"></script>
+    <link rel=stylesheet type="text/css" href="ctrlpad.css">
+    <link rel='import' href='http://webduino.io/components/webduino/web-arduino.html' />
+    <link rel='import' href='http://webduino.io/components/webduino/wa-led.html' />
+    <link rel='import' href='http://webduino.io/components/webduino/wa-buzzer.html' />
+    <script src="ctrlpad.js"></script>
+    <style>
+    body {
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    ;
+    </style>
+</head>
+
+<body id="body">
+    <web-arduino id="board" device='MY1D'>
+
+        <wa-led id='ff' pin='9'></wa-led>
+        <wa-led id='bb' pin='8'></wa-led>
+        <wa-led id='ll' pin='6'></wa-led>
+        <wa-led id='rr' pin='7'></wa-led>
+        <wa-buzzer id='buzzer' pin='6' notes='d7' tempos=''></wa-buzzer>
+    </web-arduino>
+
+    <div id="f"></div>
+    <div id="b"></div>
+    <div id="l"></div>
+    <div id="r"></div>
+    <div id="bubu"></div>
+
+    <div id="show" class="n"></div>
+</body>
+
+</html>
