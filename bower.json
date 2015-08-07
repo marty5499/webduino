@@ -1,0 +1,16 @@
+{
+  "name": "webduino",
+  "version": "0.0.0",
+  "homepage": "https://github.com/marty5499/webduino",
+  "authors": [
+    "marty <marty.shu@gmail.com>"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
