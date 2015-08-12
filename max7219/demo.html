@@ -4,14 +4,14 @@
   <script src='../bower_components/webcomponentsjs/webcomponents.js'></script>
   <link rel='import' href='../bower_components/webduino/web-arduino.html'></link>
   <link rel='import' href='../bower_components/webduino/wa-led.html'></link>
-  <link rel='import' href='../bower_components/webduino/wa-max7219.html'></link>
+  <link rel='import' href='../bower_components/wa-max7219/wa-max7219.html'></link>
 
 </head>
 
 <body>
-  <web-arduino id='board' device='4APl'>
-    <wa-led id='led' pin='11'></wa-led>
-    <wa-max7219 id='max' din='6' cs='7' clk='8'></wa-max7219>
+  <web-arduino id='board' device='41PB'>
+    <wa-led id='led' pin='12'></wa-led>
+    <wa-max7219 id='max' din='9' cs='10' clk='11'></wa-max7219>
   </web-arduino>
 
   <script>
