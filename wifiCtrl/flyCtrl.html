@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<!--
+Created using JS Bin
+http://jsbin.com
+
+Copyright (c) 2015 by marty5499 (http://jsbin.com/vilizi/2/edit)
+
+Released under the MIT license: http://jsbin.mit-license.org
+-->
+<meta name="robots" content="noindex">
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>遙控車-遙控器版</title>
+  <script src="https://webduino.io/components/webcomponentsjs/webcomponents.js"></script>
+  <link rel='import' href='https://webduino.io/components/webduino/web-arduino.html' />
+  <link rel='import' href='https://webduino.io/components/webduino/wa-led.html' />
+  <link rel='import' href='https://webduino.io/components/webduino/wa-buzzer.html' />
+
+  <style>
+  body {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  ;
+  </style>
+  <style id="jsbin-css">
+  html,
+  body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  .btn {
+    height: 120px;
+    width: 24%;
+    font-size: 32px;
+  }
+  body {
+    background-color: #fff;
+    background-image: url(https://lh3.googleusercontent.com/-axih1ezTBZk/VYJyraFTlMI/AAAAAAABH-4/RbL6j3myoiY/s000/control.jpg);
+    background-size: 200%;
+    background-repeat: no-repeat;
+    background-position: left bottom;
+  }
+  #show {
+    /* background-image:url(https://lh3.googleusercontent.com/-qbPeem4w5Mw/VYEoVlHKmMI/AAAAAAABH-I/Y6k66Gz7Tr0/s000/a1.jpg); */
+    
+    width: 200px;
+    height: 200px;
+    background-size: cover;
+    margin: 20px auto 0;
+  }
+  #show.n {
+    display: none;
+  }
+  #show.f {
+    -webkit-transform: rotate(0deg);
+  }
+  #show.b {
+    -webkit-transform: rotate(180deg);
+  }
+  #show.l {
+    -webkit-transform: rotate(90deg);
+  }
+  #show.r {
+    -webkit-transform: rotate(-90deg);
+  }
+  #show.fl {
+    -webkit-transform: rotate(45deg);
+  }
+  #show.fr {
+    -webkit-transform: rotate(-45deg);
+  }
+  #show.bl {
+    -webkit-transform: rotate(135deg);
+  }
+  #show.br {
+    -webkit-transform: rotate(225deg);
+  }
+  #f {
+    opacity: .4;
+    position: absolute;
+    left: 0;
+    width: 35%;
+    border: 1px dashed #fff;
+  }
+  #b {
+    opacity: .4;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 35%;
+    border: 1px dashed #fff;
+  }
+  #l {
+    opacity: .4;
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 20%;
+    border: 1px dashed #fff;
+  }
+  #r {
+    opacity: .4;
+    position: absolute;
+    bottom: 0;
+    right: calc(20% + 5px);
+    width: 20%;
+    border: 1px dashed #fff;
+  }
+  #bubu {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #f00;
+    position: absolute;
+    bottom: 0;
+  }
+  </style>
+</head>
+
+<body id="body">
+  <div id='msg' style='font-size:32px'></div>
+  <web-arduino id="board" device='rmzX'>
+    <wa-led id='led1' pin='0'></wa-led>
+    <wa-led id='led2' pin='2'></wa-led>
+    <wa-led id='led3' pin='4'></wa-led>
+    <wa-led id='led4' pin='5'></wa-led>
+    <wa-led id='led5' pin='12'></wa-led>
+    <wa-led id='led6' pin='13'></wa-led>
+    <wa-led id='led7' pin='14'></wa-led>
+    <wa-led id='led8' pin='15'></wa-led>
+  </web-arduino>
+  <button id='slow' class='btn'>Slow</button>
+  <button id='mid' class='btn'>Middle</button>
+  <button id='fast' class='btn'>Fast</button>
+  <button id='Off' class='btn'>Off</button>
+  <div id="f"></div>
+  <div id="b"></div>
+  <div id="l"></div>
+  <div id="r"></div>
+  <div id="bubux"></div>
+
+  <div id="show" class="n"></div>
+  <script id="jsbin-javascript">
+  var maxActTime = 1000;
+  // 1: go , -1: back , 0: stop
+  var goBackState = 0; // stop
+  // -1: left , 1: right , 0: stop
+  var LRState = 0; // stop
+
+  var btnDown = 'mousedown';
+  var btnUp = 'mouseup';
+  var goBackTimer;
+
+
+  function flip(t) {
+    goLeft();
+    setTimeout(function() {
+      goRight();
+    }, t);
+    setTimeout(function() {
+      stopLR();
+    }, t * 2);
+  }
+
+  var autoTimer = null;
+
+
+  slow.addEventListener('touchstart', function() {
+    if (autoTimer != null) {
+      clearInterval(autoTimer);
+    }
+    autoTimer = setInterval(function() {
+      flip(500);
+    }, 1500);
+  });
+
+  mid.addEventListener('touchstart', function() {
+    if (autoTimer != null) {
+      clearInterval(autoTimer);
+    }
+    autoTimer = setInterval(function() {
+      flip(300);
+    }, 900);
+  });
+
+  fast.addEventListener('touchstart', function() {
+    if (autoTimer != null) {
+      clearInterval(autoTimer);
+    }
+    autoTimer = setInterval(function() {
+      flip(100);
+    }, 300);
+  });
+
+  Off.addEventListener('touchstart', function() {
+    stopLR();
+  });
+
+
+  function forward() {
+    msg.innerHTML = 'forward';
+    led1.off();
+    led2.off();
+    led3.on();
+    led4.on();
+  }
+
+  function backward() {
+    msg.innerHTML = 'backward';
+    led1.on();
+    led2.on();
+    led3.off();
+    led4.off();
+  }
+
+  function stop() {
+    led1.off();
+    led2.off();
+    led3.off();
+    led4.off();
+    msg.innerHTML = 'stop';
+  }
+
+
+  function goLeft() {
+    msg.innerHTML = 'left';
+    led5.on();
+    led6.on();
+    led7.off();
+    led8.off();
+  }
+
+  function goRight() {
+    msg.innerHTML = 'right';
+    led5.off();
+    led6.off();
+    led7.on();
+    led8.on();
+  }
+
+  function stopLR() {
+    led5.off();
+    led6.off();
+    led7.off();
+    led8.off();
+    msg.innerHTML = 'stopLR';
+  }
+
+
+  window.addEventListener('WebComponentsReady', function() {
+
+    var nowState = 0;
+
+    var board = document.getElementById('board'),
+      body = document.getElementById('body'),
+      F = document.getElementById('f'),
+      B = document.getElementById('b'),
+      L = document.getElementById('l'),
+      R = document.getElementById('r'),
+      show = document.getElementById('show'),
+      bubu = document.getElementById('bubu'),
+      cf = 0,
+      cb = 0,
+      cl = 0,
+      cr = 0,
+      w = window.innerWidth;
+
+    F.style.height = w / 3.2 + 'px';
+    F.style.bottom = ((w / 3.2) + 5) + 'px';
+    B.style.height = w / 3.2 + 'px';
+    L.style.height = w / 4 * 2 + 'px';
+    R.style.height = w / 4 * 2 + 'px';
+    //bubu.style.left = (w / 2 - 30) + 'px';
+
+    window.addEventListener('resize', rs);
+
+    function rs() {
+      w = window.innerWidth;
+      console.log(w);
+      F.style.height = w / 3.2 + 'px';
+      F.style.bottom = ((w / 3.2) + 5) + 'px';
+      B.style.height = w / 3.2 + 'px';
+      L.style.height = w / 4 * 2 + 'px';
+      R.style.height = w / 4 * 2 + 'px';
+      //bubu.style.left = (w / 2 - 50) + 'px';
+    }
+
+    board.on('ready', function ready() {
+      var ff = document.getElementById('ff'),
+        bb = document.getElementById('bb'),
+        ll = document.getElementById('ll'),
+        rr = document.getElementById('rr'),
+        buzzer = document.getElementById('buzzer');
+
+
+      F.addEventListener('touchstart', function() {
+        body.style.backgroundPosition = 'right bottom';
+        cf = 1;
+        if (cl === 0 && cr === 0) {
+          show.className = 'f';
+        }
+        if (cl === 1) {
+          show.className = 'fl';
+        }
+        if (cr === 1) {
+          show.className = 'fr';
+        }
+        forward();
+        goBackState = 1;
+        goBackTimer = setTimeout(function() {
+          if (goBackState == 1) {
+            goBackState = 0;
+            stop();
+          }
+        }, maxActTime);
+
+
+      }, false);
+
+      F.addEventListener('touchend', function() {
+        body.style.backgroundPosition = 'left bottom';
+        cf = 0;
+        if ((cf + cb + cl + cr) === 0) {
+          show.className = 'n';
+        }
+        stop();
+        goBackState = 0;
+        clearTimeout(goBackTimer);
+      }, false);
+
+
+      B.addEventListener('touchstart', function() {
+        body.style.backgroundPosition = 'right bottom';
+        cb = 1;
+        if (cl === 0 && cr === 0) {
+          show.className = 'b';
+        }
+        if (cl === 1) {
+          show.className = 'bl';
+        }
+        if (cr === 1) {
+          show.className = 'br';
+        }
+        backward();
+        goBackState = 1;
+        goBackTimer = setTimeout(function() {
+          if (goBackState == 1) {
+            goBackState = 0;
+            stop();
+          }
+        }, maxActTime);
+
+
+      }, false);
+
+      B.addEventListener('touchend', function() {
+        body.style.backgroundPosition = 'left bottom';
+        cb = 0;
+        if ((cf + cb + cl + cr) === 0) {
+          show.className = 'n';
+        }
+        stop();
+        goBackState = -1;
+        clearTimeout(goBackTimer);
+
+
+      }, false);
+
+
+
+      L.addEventListener('touchstart', function() {
+        body.style.backgroundPosition = 'right bottom';
+        cl = 1;
+        if (cf === 0 && cb === 0) {
+          show.className = 'l';
+        }
+        if (cf === 1) {
+          show.className = 'fl';
+        }
+        if (cb === 1) {
+          show.className = 'bl';
+        }
+        goLeft();
+        LRState = -1;
+
+      }, false);
+
+      L.addEventListener('touchend', function() {
+        body.style.backgroundPosition = 'left bottom';
+        cl = 0;
+        if ((cf + cb + cl + cr) === 0) {
+          show.className = 'n';
+        }
+        stopLR();
+        LRState = 0;
+      }, false);
+
+      R.addEventListener('touchstart', function() {
+        body.style.backgroundPosition = 'right bottom';
+        cr = 1;
+        if (cf === 0 && cb === 0) {
+          show.className = 'r';
+        }
+        if (cf === 1) {
+          show.className = 'fr';
+        }
+        if (cb === 1) {
+          show.className = 'br';
+        }
+        goRight();
+        LRState = 1;
+      }, false);
+
+      R.addEventListener('touchend', function() {
+        body.style.backgroundPosition = 'left bottom';
+        cr = 0;
+        if ((cf + cb + cl + cr) === 0) {
+          show.className = 'n';
+        }
+        stopLR();
+        LRState = 0;
+      }, false);
+
+    });
+
+  }, false);
+  </script>
+</body>
+
+</html>
