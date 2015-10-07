@@ -2,6 +2,7 @@
 <html>
 
 <head>
+  <meta charset="UTF-8">
   <script src="../bower_components/webcomponentsjs/webcomponents.min.js">
   </script>
   <script type="text/javascript" src="./lib/asciimo.js"></script>
@@ -15,7 +16,6 @@
     user-select: none;
     -webkit-user-select: none;
   }
-  ;
   </style>
 </head>
 
@@ -44,6 +44,7 @@
     <wa-max7219-row id='byte7'></wa-max7219-row>
   </div>
   <script>
+  
   ch.addEventListener("keyup", function(e) {
     var str = String.fromCharCode(e.keyCode);
     ch.value = str;
@@ -53,11 +54,15 @@
   hex.addEventListener("keyup", function() {
     update();
   });
+  
   max7219.addEventListener('state', function(e) {
     var info = e.detail;
     var str = hex.value;
     var pos = info.row.substring(4) * 2;
-    str = str.substring(0, pos) + info.value + str.substring(pos + 2);
+    var val = info.value.length < 2 ? '0' + info.value : info.value;
+    // console.log('state', info, pos, str, typeof val, '前：', str.substring(0, pos), '後：', str.substring(pos+2));
+    str = str.substring(0, pos) + val + str.substring(pos + 2);
+    // str = str.substring(0, pos) + info.value + str.substring(pos + 2);
     hex.value = str;
     update();
   });
@@ -79,8 +84,8 @@
       info.push(parseInt(byteHex));
     }
     info.push(0xf7);
-    console.log(info);
-    board.send(info);
+    // console.log(info);
+    // board.send(info);
   }
 
   function genChar(str) {
@@ -107,16 +112,16 @@
   }
 
 
-  var board = new webduino.WebArduino('4APl');
-  board.on('ready', function ready() {
-    board.send([0xf0, 0x04, 0x08, 0x00, 9, 10, 11, 0xf7]);
-    board.send([0xf0, 0x04, 0x08, 0x02, 9, 10, 11, 0xf7]);
-    board.send([
-      0xf0, 0x04, 0x08, 01,
-      255, 255, 255, 255, 255, 255, 255, 255, 0xf7
-    ]);
-    board.send([0xf0, 0x04, 0x08, 02, 0xf7]);
-  });
+  // var board = new webduino.WebArduino('4APl');
+  // board.on('ready', function ready() {
+  //   board.send([0xf0, 0x04, 0x08, 0x00, 9, 10, 11, 0xf7]);
+  //   board.send([0xf0, 0x04, 0x08, 0x02, 9, 10, 11, 0xf7]);
+  //   board.send([
+  //     0xf0, 0x04, 0x08, 01,
+  //     255, 255, 255, 255, 255, 255, 255, 255, 0xf7
+  //   ]);
+  //   board.send([0xf0, 0x04, 0x08, 02, 0xf7]);
+  // });
   </script>
 </body>
 
