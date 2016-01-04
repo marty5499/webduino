@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<meta name="robots" content="noindex">
+<html>
+
+<head>
+  <!-- <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-eval' 'unsafe-inline'"> -->
+  <meta charset="utf-8">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="msapplication-tap-highlight" content="no">
+  <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width">
+  <title>視頻遙控車</title>
+  <!-- <script src="cordova.js"></script> -->
+  <script src="https://webduino.io/components/webcomponentsjs/webcomponents.js"></script>
+  <link rel='import' href='https://webduino.io/components/webduino/web-arduino.html' />
+  <link rel='import' href='https://webduino.io/components/webduino/wa-led.html' />
+  <!-- <script src="https://webduino.io/components/webduino-bluetooth-transport/src/CordovaBluetoothTransport.js"></script> -->
+  <style>
+  body {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  ;
+  </style>
+  <script type="text/javascript">
+  var signalling_server_hostname = location.hostname;
+  var signalling_server_address = signalling_server_hostname + ':' + (8080);
+
+  addEventListener("DOMContentLoaded", function() {
+    document.getElementById('signalling_server').value = signalling_server_address;
+  });
+
+  var ws = null;
+  var pc;
+  var audio_video_stream;
+  var pcConfig = {
+    "iceServers": [{
+      "urls": [ /*"stun:stun.l.google.com:19302",*/ "stun:" + signalling_server_hostname + ":3478"]
+    }]
+  };
+  var pcOptions = {
+    optional: [{
+      DtlsSrtpKeyAgreement: true
+    }]
+  };
+  var mediaConstraints = {
+    optional: [],
+    mandatory: {
+      OfferToReceiveAudio: true,
+      OfferToReceiveVideo: true
+    }
+  };
+
+  RTCPeerConnection = window.mozRTCPeerConnection || window.webkitRTCPeerConnection;
+  RTCSessionDescription = window.mozRTCSessionDescription || window.RTCSessionDescription;
+  RTCIceCandidate = window.mozRTCIceCandidate || window.RTCIceCandidate;
+  navigator.getUserMedia = navigator.getUserMedia || navigator.mozGetUserMedia || navigator.webkitGetUserMedia;
+  URL = window.URL || window.webkitURL;
+
+  function createPeerConnection() {
+    try {
+      var pcConfig_ = pcConfig;
+      try {
+        ice_servers = document.getElementById('ice_servers').value;
+        if (ice_servers) {
+          pcConfig_.iceServers = JSON.parse(ice_servers);
+        }
+      } catch (e) {
+        console.log(e + "\nExample: " + '\n[ {"urls": "stun:stun1.example.net"}, {"urls": "turn:turn.example.org", "username": "user", "credential": "myPassword"} ]' + "\nContinuing with built-in RTCIceServer array");
+      }
+      console.log(JSON.stringify(pcConfig_));
+      pc = new RTCPeerConnection(pcConfig_, pcOptions);
+      pc.onicecandidate = onIceCandidate;
+      pc.onaddstream = onRemoteStreamAdded;
+      pc.onremovestream = onRemoteStreamRemoved;
+      console.log("peer connection successfully created!");
+    } catch (e) {
+      console.log("createPeerConnection() failed");
+    }
+  }
+
+  function onIceCandidate(event) {
+    if (event.candidate) {
+      var candidate = {
+        sdpMLineIndex: event.candidate.sdpMLineIndex,
+        sdpMid: event.candidate.sdpMid,
+        candidate: event.candidate.candidate
+      };
+      var command = {
+        command_id: "addicecandidate",
+        data: JSON.stringify(candidate)
+      };
+      ws.send(JSON.stringify(command));
+    } else {
+      console.log("End of candidates.");
+    }
+  }
+
+  function onRemoteStreamAdded(event) {
+    console.log("Remote stream added:", URL.createObjectURL(event.stream));
+    var remoteVideoElement = document.getElementById('remote-video');
+    remoteVideoElement.src = URL.createObjectURL(event.stream);
+    remoteVideoElement.play();
+  }
+
+  function onRemoteStreamRemoved(event) {
+    var remoteVideoElement = document.getElementById('remote-video');
+    remoteVideoElement.src = '';
+  }
+
+  function start() {
+    if ("WebSocket" in window) {
+      document.getElementById("stop").disabled = false;
+      document.getElementById("start").disabled = true;
+      document.documentElement.style.cursor = 'wait';
+      server = document.getElementById("signalling_server").value.toLowerCase();
+
+      ws = new WebSocket('ws://' + server + '/stream/webrtc');
+
+      function offer(stream) {
+        createPeerConnection();
+        if (stream) {
+          pc.addStream(stream);
+        }
+        var command = {
+          command_id: "offer"
+        };
+        ws.send(JSON.stringify(command));
+        console.log("offer(), command=" + JSON.stringify(command));
+      }
+
+      ws.onopen = function() {
+        console.log("onopen()");
+        offer();
+      };
+
+      ws.onmessage = function(evt) {
+        var msg = JSON.parse(evt.data);
+        //console.log("message=" + msg);
+        console.log("type=" + msg.type);
+
+        switch (msg.type) {
+          case "offer":
+            pc.setRemoteDescription(new RTCSessionDescription(msg),
+              function onRemoteSdpSuccess() {
+                console.log('onRemoteSdpSucces()');
+                pc.createAnswer(function(sessionDescription) {
+                  pc.setLocalDescription(sessionDescription);
+                  var command = {
+                    command_id: "answer",
+                    data: JSON.stringify(sessionDescription)
+                  };
+                  ws.send(JSON.stringify(command));
+                  console.log(command);
+
+                }, function(error) {
+                  console.log("Failed to createAnswer: " + error);
+
+                }, mediaConstraints);
+              },
+              function onRemoteSdpError(event) {
+                console.log('Failed to setRemoteDescription: ' + event);
+              }
+            );
+
+            var command = {
+              command_id: "geticecandidate"
+            };
+            console.log(command);
+            ws.send(JSON.stringify(command));
+            break;
+
+          case "answer":
+            break;
+
+          case "message":
+            console.log(msg.data);
+            break;
+
+          case "geticecandidate":
+            var candidates = JSON.parse(msg.data);
+            for (var i = 0; i < candidates.length; i++) {
+              var elt = candidates[i];
+              var candidate = new RTCIceCandidate({
+                sdpMLineIndex: elt.sdpMLineIndex,
+                candidate: elt.candidate
+              });
+              pc.addIceCandidate(candidate,
+                function() {
+                  console.log("IceCandidate added: " + JSON.stringify(candidate));
+                },
+                function(error) {
+                  console.log("addIceCandidate error: " + error);
+                }
+              );
+            }
+            document.documentElement.style.cursor = 'default';
+            break;
+        }
+      };
+
+      ws.onclose = function(evt) {
+        if (pc) {
+          pc.close();
+          pc = null;
+        }
+        document.getElementById("stop").disabled = true;
+        document.getElementById("start").disabled = false;
+        document.documentElement.style.cursor = 'default';
+      };
+
+      ws.onerror = function(evt) {
+        console.log("An error has occurred!");
+        ws.close();
+      };
+
+    } else {
+      console.log("Sorry, this browser does not support WebSockets.");
+    }
+  }
+
+  function stop() {
+    if (audio_video_stream) {
+      audio_video_stream.stop()
+      audio_video_stream = null;
+    }
+    document.getElementById('remote-video').src = '';
+    if (pc) {
+      pc.close();
+      pc = null;
+    }
+    if (ws) {
+      ws.close();
+      ws = null;
+    }
+    document.getElementById("stop").disabled = true;
+    document.getElementById("start").disabled = false;
+    document.documentElement.style.cursor = 'default';
+  }
+
+  function mute() {
+    var remoteVideo = document.getElementById("remote-video");
+    remoteVideo.muted = !remoteVideo.muted;
+  }
+
+  function pause() {
+    var remoteVideo = document.getElementById("remote-video");
+    if (remoteVideo.paused)
+      remoteVideo.play();
+    else
+      remoteVideo.pause();
+  }
+
+  function fullscreen() {
+    var remoteVideo = document.getElementById("remote-video");
+    if (remoteVideo.requestFullScreen) {
+      remoteVideo.requestFullScreen();
+    } else if (remoteVideo.webkitRequestFullScreen) {
+      remoteVideo.webkitRequestFullScreen();
+    } else if (remoteVideo.mozRequestFullScreen) {
+      remoteVideo.mozRequestFullScreen();
+    }
+  }
+
+  window.onbeforeunload = function() {
+    if (ws) {
+      ws.onclose = function() {}; // disable onclose handler first
+      stop();
+    }
+  };
+  </script>
+  <style id="jsbin-css">
+  html,
+  body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    background-color: #fff;
+    background-image: url(https://lh3.googleusercontent.com/-axih1ezTBZk/VYJyraFTlMI/AAAAAAABH-4/RbL6j3myoiY/s000/control.jpg);
+    background-size: 200%;
+    background-repeat: no-repeat;
+    background-position: left bottom;
+  }
+  #show {
+    /* background-image:url(https://lh3.googleusercontent.com/-qbPeem4w5Mw/VYEoVlHKmMI/AAAAAAABH-I/Y6k66Gz7Tr0/s000/a1.jpg); */
+    
+    width: 200px;
+    height: 200px;
+    background-size: cover;
+    margin: 20px auto 0;
+  }
+  #show.n {
+    display: none;
+  }
+  #show.f {
+    -webkit-transform: rotate(0deg);
+  }
+  #show.b {
+    -webkit-transform: rotate(180deg);
+  }
+  #show.l {
+    -webkit-transform: rotate(90deg);
+  }
+  #show.r {
+    -webkit-transform: rotate(-90deg);
+  }
+  #show.fl {
+    -webkit-transform: rotate(45deg);
+  }
+  #show.fr {
+    -webkit-transform: rotate(-45deg);
+  }
+  #show.bl {
+    -webkit-transform: rotate(135deg);
+  }
+  #show.br {
+    -webkit-transform: rotate(225deg);
+  }
+  #f {
+    opacity: .4;
+    position: absolute;
+    left: 0;
+    width: 40%;
+    border: 1px dashed #fff;
+  }
+  #b {
+    opacity: .4;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 40%;
+    border: 1px dashed #fff;
+  }
+  #l {
+    opacity: .4;
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 21%;
+    border: 1px dashed #fff;
+  }
+  #r {
+    opacity: .4;
+    position: absolute;
+    bottom: 0;
+    right: calc(21% + 5px);
+    width: 21%;
+    border: 1px dashed #fff;
+  }
+  </style>
+</head>
+
+<body id="body">
+  <div id="container">
+    <div id="remote">
+      <video id="remote-video" autoplay="" style="border:1px solid" width="100%">
+        Your browser does not support the video tag.
+      </video>
+    </div>
+  </div>
+  <div id="controls">
+    RPi:
+    <input required type="text" id="signalling_server" size="16" title="<host>:<port>, default address is autodetected" />Device:
+    <input required type="text" id="device" size="6" value="MWRL" />
+    <button id="ok">OK</button>
+    <br>
+    <button id="start" onclick="start();">Start</button>
+    <button disabled id="stop" onclick="stop();">Stop</button>
+    <button id="mute" onclick="mute();">Mute/Unmute</button>
+    <button id="fullscreen" onclick="fullscreen();">Fullscreen</button>
+  </div>
+  <br>
+  <web-arduino id="board" device="">
+    <wa-led id='rb' pin='9'></wa-led>
+    <wa-led id='rf' pin='6'></wa-led>
+    <wa-led id='lb' pin='11'></wa-led>
+    <wa-led id='lf' pin='10'></wa-led>
+  </web-arduino>
+  <div id="f"></div>
+  <div id="b"></div>
+  <div id="l"></div>
+  <div id="r"></div>
+  <div id="show" class="n"></div>
+  <script id="jsbin-javascript">
+  window.addEventListener('WebComponentsReady', function() {
+    var lInterval, rInterval;
+    var lFlag, rFlag;
+    //start();
+    var board = document.getElementById('board'),
+      device = document.getElementById('device'),
+      ok = document.getElementById('ok'),
+      body = document.getElementById('body'),
+      F = document.getElementById('f'),
+      B = document.getElementById('b'),
+      L = document.getElementById('l'),
+      R = document.getElementById('r'),
+      show = document.getElementById('show'),
+      cf = 0,
+      cb = 0,
+      cl = 0,
+      cr = 0,
+      w = window.innerWidth;
+    var fbpower = 0.8;
+    var rlpower = 0.8;
+    F.style.height = w / 3.2 + 'px';
+    F.style.bottom = ((w / 3.2) + 5) + 'px';
+    B.style.height = w / 3.2 + 'px';
+    L.style.height = w / 4 * 2 + 'px';
+    R.style.height = w / 4 * 2 + 'px';
+
+    window.addEventListener('resize', rs);
+
+    function rs() {
+      w = window.innerWidth;
+      F.style.height = w / 3.2 + 'px';
+      F.style.bottom = ((w / 3.2) + 5) + 'px';
+      B.style.height = w / 3.2 + 'px';
+      L.style.height = w / 4 * 2 + 'px';
+      R.style.height = w / 4 * 2 + 'px';
+    }
+
+    ok.addEventListener('click', function() {
+      board.device = device.value;
+      board.on('ready', ready);
+      board.init();
+    }, false);
+
+    function ready() {
+      var rf = document.getElementById('rf'),
+        rb = document.getElementById('rb'),
+        lf = document.getElementById('lf'),
+        lb = document.getElementById('lb');
+      rf.off();
+      rb.off();
+      lf.off();
+      lb.off();
+
+      F.addEventListener('touchstart', function() {
+        body.style.backgroundPosition = 'right bottom';
+        cf = 1;
+        rf.on();
+        rb.off();
+        lf.on();
+        lb.off();
+        if (cl === 0 && cr === 0) {
+          show.className = 'f';
+        }
+        if (cl == 1) {
+          show.className = 'fl';
+        }
+        if (cr == 1) {
+          show.className = 'fr';
+        }
+      }, false);
+
+      F.addEventListener('touchend', function() {
+        body.style.backgroundPosition = 'left bottom';
+        cf = 0;
+        rf.off();
+        rb.off();
+        lf.off();
+        lb.off();
+        show.className = 'n';
+      }, false);
+
+
+      B.addEventListener('touchstart', function() {
+        body.style.backgroundPosition = 'right bottom';
+        cb = 1;
+        rf.off();
+        rb.on();
+        lf.off();
+        lb.on();
+        if (cl === 0 && cr === 0) {
+          show.className = 'b';
+        }
+        if (cl == 1) {
+          show.className = 'bl';
+        }
+        if (cr == 1) {
+          show.className = 'br';
+        }
+      }, false);
+
+      B.addEventListener('touchend', function() {
+        body.style.backgroundPosition = 'left bottom';
+        cb = 0;
+        rf.off();
+        rb.off();
+        lf.off();
+        lb.off();
+        show.className = 'n';
+      }, false);
+
+
+
+      L.addEventListener('touchstart', function() {
+        body.style.backgroundPosition = 'right bottom';
+        cl = 1;
+        lInterval = setInterval(function() {
+          lFlag = !lFlag;
+          if (lFlag) {
+            rf.off();
+            rb.on();
+            lf.off();
+            lb.off();
+          } else {
+            lf.on();
+            lb.off();
+            rf.off();
+            rb.off();
+          }
+        }, 200);
+        if (cf === 0 && cb === 0) {
+          show.className = 'l';
+        }
+        if (cf == 1) {
+          show.className = 'fl';
+        }
+        if (cb == 1) {
+          show.className = 'bl';
+        }
+      }, false);
+
+      L.addEventListener('touchend', function() {
+        body.style.backgroundPosition = 'left bottom';
+        cl = 0;
+        clearInterval(lInterval);
+        setTimeout(function() {
+          rf.off();
+          rb.off();
+          lf.off();
+          lb.off();
+        }, 300);
+        show.className = 'n';
+      }, false);
+
+      R.addEventListener('touchstart', function() {
+        body.style.backgroundPosition = 'right bottom';
+        cr = 1;
+        rInterval = setInterval(function() {
+          rFlag = !rFlag;
+          if (rFlag) {
+            lf.off();
+            lb.off();
+            rf.on();
+            rb.off();
+          } else {
+            rf.off();
+            rb.off();
+            lf.off();
+            lb.on();
+          }
+        }, 200);
+        if (cf === 0 && cb === 0) {
+          show.className = 'r';
+        }
+        if (cf == 1) {
+          show.className = 'fr';
+        }
+        if (cb == 1) {
+          show.className = 'br';
+        }
+      }, false);
+
+      R.addEventListener('touchend', function() {
+        body.style.backgroundPosition = 'left bottom';
+        cr = 0;
+        clearInterval(rInterval);
+        setTimeout(function() {
+          rf.off();
+          rb.off();
+          lf.off();
+          lb.off();
+        }, 300);
+        show.className = 'n';
+      }, false);
+    }
+
+  }, false);
+  </script>
+</body>
+
+</html>
