@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<!--
+Created using JS Bin
+http://jsbin.com
+
+Copyright (c) 2016 by anonymous (http://jsbin.com/jabulomira/1/edit)
+
+Released under the MIT license: http://jsbin.mit-license.org
+-->
+<meta name="robots" content="noindex">
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>遙控車-遙控器版</title>
+  <script src="http://webduino.io/components/webcomponentsjs/webcomponents.js"></script>
+  <link rel='import' href='http://webduino.io/components/webduino/web-arduino.html' />
+  <link rel='import' href='http://webduino.io/components/webduino/wa-led.html' />
+  <link rel='import' href='http://webduino.io/components/webduino/wa-buzzer.html' />
+  <style>
+    body{
+      user-select: none;
+      -webkit-user-select: none;
+    };
+  </style>
+<style id="jsbin-css">
+html,body{
+  height:100%;
+  width:100%;
+  margin:0;
+  padding:0;
+}
+body{
+  background-color:#fff;
+  background-image:url(https://lh3.googleusercontent.com/-axih1ezTBZk/VYJyraFTlMI/AAAAAAABH-4/RbL6j3myoiY/s000/control.jpg);
+  background-size:200%;
+  background-repeat:no-repeat;
+  background-position:left bottom;
+}
+
+#show{
+  /* background-image:url(https://lh3.googleusercontent.com/-qbPeem4w5Mw/VYEoVlHKmMI/AAAAAAABH-I/Y6k66Gz7Tr0/s000/a1.jpg); */
+  width:200px;
+  height:200px;
+  background-size:cover;
+  margin:20px auto 0 ;
+}
+#show.n{
+  display:none;
+}
+#show.f{
+  -webkit-transform:rotate(0deg);
+}
+#show.b{
+  -webkit-transform:rotate(180deg);
+}
+#show.l{
+  -webkit-transform:rotate(90deg);
+}
+#show.r{
+  -webkit-transform:rotate(-90deg);
+}
+#show.fl{
+  -webkit-transform:rotate(45deg);
+}
+#show.fr{
+  -webkit-transform:rotate(-45deg);
+}
+#show.bl{
+  -webkit-transform:rotate(135deg);
+}
+#show.br{
+  -webkit-transform:rotate(225deg);
+}
+
+#f{
+  opacity:.4;
+  position:absolute;
+  left:0;
+  width:35%;
+  border:1px dashed #fff;
+}
+#b{
+  opacity:.4;
+  position:absolute;
+  bottom:0;
+  left:0;
+  width:35%;
+  border:1px dashed #fff;
+}
+#l{
+  opacity:.4;
+  position:absolute;
+  bottom:0;
+  right:0;
+  width:20%;
+  border:1px dashed #fff;
+}
+#r{
+  opacity:.4;
+  position:absolute;
+  bottom:0;
+  right:calc(20% + 5px);
+  width:20%;
+  border:1px dashed #fff;
+}
+#bubu{
+  width:60px;
+  height:60px;
+  border-radius:50%;
+  background:#f00;
+  position:absolute;
+  bottom:0;
+}
+</style>
+</head>
+<body id="body">
+  <web-arduino id="board" device='r8Jn'>
+    
+    <wa-led id='ff' pin='9'></wa-led>
+    <wa-led id='bb' pin='8'></wa-led>
+    <wa-led id='ll' pin='6'></wa-led>
+    <wa-led id='rr' pin='7'></wa-led>
+      <wa-buzzer id='buzzer' pin='14' notes='d7' tempos='' ></wa-buzzer>
+  </web-arduino>
+  
+  <div id="f"></div>
+  <div id="b"></div>
+  <div id="l"></div>
+  <div id="r"></div>
+  <div id="bubu"></div>
+  
+  <div id="show" class="n"></div>
+  
+  
+<script id="jsbin-javascript">
+window.addEventListener('WebComponentsReady', function () {
+  var board = document.getElementById('board'),
+    body = document.getElementById('body'),
+    F = document.getElementById('f'),
+    B = document.getElementById('b'),
+    L = document.getElementById('l'),
+    R = document.getElementById('r'),
+    show = document.getElementById('show'),
+    bubu = document.getElementById('bubu'),
+    cf = 0,
+    cb = 0,
+    cl = 0,
+    cr = 0,
+    w = window.innerWidth;
+
+  F.style.height = w / 3.2 + 'px';
+  F.style.bottom = ((w / 3.2) + 5) + 'px';
+  B.style.height = w / 3.2 + 'px';
+  L.style.height = w / 4 * 2 + 'px';
+  R.style.height = w / 4 * 2 + 'px';
+  bubu.style.left = (w / 2 - 30) + 'px';
+
+  window.addEventListener('resize', rs);
+
+  function rs() {
+    w = window.innerWidth;
+    F.style.height = w / 3.2 + 'px';
+    F.style.bottom = ((w / 3.2) + 5) + 'px';
+    B.style.height = w / 3.2 + 'px';
+    L.style.height = w / 4 * 2 + 'px';
+    R.style.height = w / 4 * 2 + 'px';
+    bubu.style.left = (w / 2 - 50) + 'px';
+  }
+
+  board.on('ready', function ready() {
+    var ff = document.getElementById('ff'),
+      bb = document.getElementById('bb'),
+      ll = document.getElementById('ll'),
+      rr = document.getElementById('rr'),
+      buzzer = document.getElementById('buzzer');
+
+    F.addEventListener('touchstart', function () {
+      body.style.backgroundPosition = 'right bottom';
+      cf = 1;
+      bb.on();
+      ff.off();
+      rr.off();
+      ll.on();      
+      if (cl === 0 && cr === 0) {
+        show.className = 'f';
+      }
+      if (cl == 1) {
+        show.className = 'fl';
+      }
+      if (cr == 1) {
+        show.className = 'fr';
+      }
+    }, false);
+
+    F.addEventListener('touchend', function () {
+      body.style.backgroundPosition = 'left bottom';
+      cf = 0;
+      ff.off();
+      bb.off();
+      ll.off();
+      rr.off();
+      if ((cf + cb + cl + cr) === 0) {
+        show.className = 'n';
+      }
+    }, false);
+
+
+    B.addEventListener('touchstart', function () {
+      body.style.backgroundPosition = 'right bottom';
+      cb = 1;
+      ff.on();
+      bb.off();
+      ll.off();
+      rr.on();
+
+      if (cl === 0 && cr === 0) {
+        show.className = 'b';
+      }
+      if (cl === 1) {
+        show.className = 'bl';
+      }
+      if (cr === 1) {
+        show.className = 'br';
+      }
+    }, false);
+
+    B.addEventListener('touchend', function () {
+      body.style.backgroundPosition = 'left bottom';
+      cb = 0;
+      ff.off();
+      bb.off();
+      ll.off();
+      rr.off();
+      if ((cf + cb + cl + cr) === 0) {
+        show.className = 'n';
+      }
+    }, false);
+
+    L.addEventListener('touchstart', function () {
+      body.style.backgroundPosition = 'right bottom';
+      cl = 1;
+      ff.off();
+      bb.on();
+      ll.off();
+      rr.on();      
+      if (cf === 0 && cb === 0) {
+        show.className = 'l';
+      }
+      if (cf == 1) {
+        show.className = 'fl';
+      }
+      if (cb == 1) {
+        show.className = 'bl';
+      }
+    }, false);
+
+    L.addEventListener('touchend', function () {
+      body.style.backgroundPosition = 'left bottom';
+      cl = 0;
+      ff.off();
+      bb.off();
+      ll.off();
+      rr.off();
+      if ((cf + cb + cl + cr) === 0) {
+        show.className = 'n';
+      }
+    }, false);
+
+    R.addEventListener('touchstart', function () {
+      body.style.backgroundPosition = 'right bottom';
+      cr = 1;
+      ff.on();
+      bb.off();
+      ll.on();
+      rr.off();
+      if (cf === 0 && cb === 0) {
+        show.className = 'r';
+      }
+      if (cf == 1) {
+        show.className = 'fr';
+      }
+      if (cb == 1) {
+        show.className = 'br';
+      }
+    }, false);
+
+    R.addEventListener('touchend', function () {
+      body.style.backgroundPosition = 'left bottom';
+      cr = 0;
+      ff.off();
+      bb.off();
+      ll.off();
+      rr.off();
+      if ((cf + cb + cl + cr) === 0) {
+        show.className = 'n';
+      }
+    }, false);
+
+    bubu.addEventListener('touchend', function () {
+      buzzer.play();
+    }, false);
+  });
+
+}, false);
+</script>
+</body>
+</html>
